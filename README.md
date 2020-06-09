@@ -1,7 +1,3 @@
-# loadup
-
-header only library for NtLoadDriver/NtUnloadDriver. 
-
 # examples
 
 loading driver from buffer.
