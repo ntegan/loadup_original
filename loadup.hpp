@@ -33,156 +33,156 @@
 using nt_load_driver_t = NTSTATUS(__fastcall*)(PUNICODE_STRING);
 using nt_unload_driver_t = NTSTATUS(__fastcall*)(PUNICODE_STRING);
 
-namespace util
-{
-	inline bool delete_service_entry(const std::string& service_name)
-	{
-		HKEY reg_handle;
-		static const std::string reg_key("System\\CurrentControlSet\\Services\\");
-
-		auto result = RegOpenKeyA(
-			HKEY_LOCAL_MACHINE,
-			reg_key.c_str(),
-			&reg_handle
-		);
-
-		RegCloseKey(reg_handle);
-		return ERROR_SUCCESS == RegDeleteKeyA(reg_handle, service_name.data());
-	}
-
-	inline bool create_service_entry(const std::string& drv_path, const std::string& service_name)
-	{
-		HKEY reg_handle;
-		std::string reg_key("System\\CurrentControlSet\\Services\\");
-		reg_key += service_name;
-
-		auto result = RegCreateKeyA(
-			HKEY_LOCAL_MACHINE,
-			reg_key.c_str(),
-			&reg_handle
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false;
-
-		//
-		// set type to 1 (kernel)
-		//
-		constexpr std::uint8_t type_value = 1;
-		result = RegSetValueExA(
-			reg_handle,
-			"Type",
-			NULL,
-			REG_DWORD,
-			&type_value,
-			4u
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false;
-
-		//
-		// set error control to 3
-		//
-		constexpr std::uint8_t error_control_value = 3;
-		result = RegSetValueExA(
-			reg_handle,
-			"ErrorControl",
-			NULL,
-			REG_DWORD,
-			&error_control_value,
-			4u
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false;
-
-		//
-		// set start to 3
-		//
-		constexpr std::uint8_t start_value = 3;
-		result = RegSetValueExA(
-			reg_handle,
-			"Start",
-			NULL,
-			REG_DWORD,
-			&start_value,
-			4u
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false;
-
-		//
-		// set image path to the driver on disk
-		//
-		result = RegSetValueExA(
-			reg_handle,
-			"ImagePath",
-			NULL,
-			REG_SZ,
-			(std::uint8_t*) drv_path.c_str(),
-			drv_path.size()
-		);
-
-		if (result != ERROR_SUCCESS)
-			return false;
-
-		return ERROR_SUCCESS == RegCloseKey(reg_handle);
-	}
-
-	// this function was coded by paracord: https://githacks.org/snippets/4#L94 
-	inline bool enable_privilege(const std::wstring& privilege_name)
-	{
-		HANDLE token_handle = nullptr;
-		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token_handle))
-			return false;
-
-		LUID luid{};
-		if (!LookupPrivilegeValueW(nullptr, privilege_name.data(), &luid))
-			return false;
-
-		TOKEN_PRIVILEGES token_state{};
-		token_state.PrivilegeCount = 1;
-		token_state.Privileges[0].Luid = luid;
-		token_state.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
-
-		if (!AdjustTokenPrivileges(token_handle, FALSE, &token_state, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr))
-			return false;
-
-		CloseHandle(token_handle);
-		return true;
-	}
-
-	inline std::string get_service_image_path(const std::string& service_name)
-	{
-		HKEY reg_handle;
-		DWORD bytes_read;
-		char image_path[0xFF];
-		static const std::string reg_key("System\\CurrentControlSet\\Services\\");
-
-		auto result = RegOpenKeyA(
-			HKEY_LOCAL_MACHINE,
-			reg_key.c_str(),
-			&reg_handle
-		);
-
-		result = RegGetValueA(
-			reg_handle,
-			"ImagePath",
-			service_name.c_str(),
-			REG_SZ, NULL,
-			image_path,
-			&bytes_read
-		);
-
-		RegCloseKey(reg_handle);
-		return std::string(image_path);
-	}
-}
-
 namespace driver
 {
+    namespace util
+    {
+    	inline bool delete_service_entry(const std::string& service_name)
+    	{
+    		HKEY reg_handle;
+    		static const std::string reg_key("System\\CurrentControlSet\\Services\\");
+    
+    		auto result = RegOpenKeyA(
+    			HKEY_LOCAL_MACHINE,
+    			reg_key.c_str(),
+    			&reg_handle
+    		);
+    
+    		RegCloseKey(reg_handle);
+    		return ERROR_SUCCESS == RegDeleteKeyA(reg_handle, service_name.data());
+    	}
+    
+    	inline bool create_service_entry(const std::string& drv_path, const std::string& service_name)
+    	{
+    		HKEY reg_handle;
+    		std::string reg_key("System\\CurrentControlSet\\Services\\");
+    		reg_key += service_name;
+    
+    		auto result = RegCreateKeyA(
+    			HKEY_LOCAL_MACHINE,
+    			reg_key.c_str(),
+    			&reg_handle
+    		);
+    
+    		if (result != ERROR_SUCCESS)
+    			return false;
+    
+    		//
+    		// set type to 1 (kernel)
+    		//
+    		constexpr std::uint8_t type_value = 1;
+    		result = RegSetValueExA(
+    			reg_handle,
+    			"Type",
+    			NULL,
+    			REG_DWORD,
+    			&type_value,
+    			4u
+    		);
+    
+    		if (result != ERROR_SUCCESS)
+    			return false;
+    
+    		//
+    		// set error control to 3
+    		//
+    		constexpr std::uint8_t error_control_value = 3;
+    		result = RegSetValueExA(
+    			reg_handle,
+    			"ErrorControl",
+    			NULL,
+    			REG_DWORD,
+    			&error_control_value,
+    			4u
+    		);
+    
+    		if (result != ERROR_SUCCESS)
+    			return false;
+    
+    		//
+    		// set start to 3
+    		//
+    		constexpr std::uint8_t start_value = 3;
+    		result = RegSetValueExA(
+    			reg_handle,
+    			"Start",
+    			NULL,
+    			REG_DWORD,
+    			&start_value,
+    			4u
+    		);
+    
+    		if (result != ERROR_SUCCESS)
+    			return false;
+    
+    		//
+    		// set image path to the driver on disk
+    		//
+    		result = RegSetValueExA(
+    			reg_handle,
+    			"ImagePath",
+    			NULL,
+    			REG_SZ,
+    			(std::uint8_t*) drv_path.c_str(),
+    			drv_path.size()
+    		);
+    
+    		if (result != ERROR_SUCCESS)
+    			return false;
+    
+    		return ERROR_SUCCESS == RegCloseKey(reg_handle);
+    	}
+    
+    	// this function was coded by paracord: https://githacks.org/snippets/4#L94 
+    	inline bool enable_privilege(const std::wstring& privilege_name)
+    	{
+    		HANDLE token_handle = nullptr;
+    		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &token_handle))
+    			return false;
+    
+    		LUID luid{};
+    		if (!LookupPrivilegeValueW(nullptr, privilege_name.data(), &luid))
+    			return false;
+    
+    		TOKEN_PRIVILEGES token_state{};
+    		token_state.PrivilegeCount = 1;
+    		token_state.Privileges[0].Luid = luid;
+    		token_state.Privileges[0].Attributes = SE_PRIVILEGE_ENABLED;
+    
+    		if (!AdjustTokenPrivileges(token_handle, FALSE, &token_state, sizeof(TOKEN_PRIVILEGES), nullptr, nullptr))
+    			return false;
+    
+    		CloseHandle(token_handle);
+    		return true;
+    	}
+    
+    	inline std::string get_service_image_path(const std::string& service_name)
+    	{
+    		HKEY reg_handle;
+    		DWORD bytes_read;
+    		char image_path[0xFF];
+    		static const std::string reg_key("System\\CurrentControlSet\\Services\\");
+    
+    		auto result = RegOpenKeyA(
+    			HKEY_LOCAL_MACHINE,
+    			reg_key.c_str(),
+    			&reg_handle
+    		);
+    
+    		result = RegGetValueA(
+    			reg_handle,
+    			"ImagePath",
+    			service_name.c_str(),
+    			REG_SZ, NULL,
+    			image_path,
+    			&bytes_read
+    		);
+    
+    		RegCloseKey(reg_handle);
+    		return std::string(image_path);
+    	}
+    }
+    
 	inline bool load(const std::string& drv_path, const std::string& service_name)
 	{
 		if (!util::enable_privilege(L"SeLoadDriverPrivilege"))
