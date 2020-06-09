@@ -28,6 +28,7 @@
 #include <Winternl.h>
 #include <string>
 #include <fstream>
+#include <filesystem>
 
 #pragma comment(lib, "ntdll.lib")
 using nt_load_driver_t = NTSTATUS(__fastcall*)(PUNICODE_STRING);
