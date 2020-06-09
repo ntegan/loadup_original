@@ -240,9 +240,9 @@ namespace driver
 		return { load(file_path, service_name), service_name };
 	}
 
-	inline std::tuple<bool, std::string> load(const void* buffer, const std::size_t size)
+	inline std::tuple<bool, std::string> load(const std::uint8_t* buffer, const std::size_t size)
 	{
-		std::vector<std::uint8_t> image((std::uint8_t*)buffer, (std::uint8_t*)buffer + size);
+		std::vector<std::uint8_t> image(buffer, buffer + size);
 		return load(image);
 	}
 
