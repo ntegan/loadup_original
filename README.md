@@ -4,7 +4,7 @@ Header only library for NtLoadDriver annd NtUnloadDriver. Registry entries and t
 
 # examples
 
-loading driver from buffer.
+loading driver from buffer. `warning` please ensure ALL handles are closed to the driver before unloading the driver! `CloseHandle`!
 
 ```cpp
 std::vector<std::uint8_t> drv_buffer(...);
