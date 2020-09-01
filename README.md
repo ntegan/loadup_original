@@ -14,11 +14,11 @@ const auto[result, reg_key] = driver::load(drv_buffer.data(), drv_buffer.size())
 load driver from path on disk.
 
 ```cpp
-const bool result = driver::load("image.sys", "service_name");
+auto result = driver::load("image.sys", "service_name");
 ```
 
 unloading driver.
 
 ```cpp
-const bool result = driver::unload("service_name");
+auto result = driver::unload("service_name");
 ```
