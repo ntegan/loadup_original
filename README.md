@@ -1,6 +1,6 @@
 # loadup
 
-Header only library for NtLoadDriver annd NtUnloadDriver. Registry entries and temp files that may be created are deleted when `driver::unload(...)` is called.
+Header only library for NtLoadDriver and NtUnloadDriver. Registry entries and temp files that may be created are deleted when `driver::unload(...)` is called.
 
 # examples
 
