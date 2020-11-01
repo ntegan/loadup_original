@@ -31,8 +31,8 @@
 #include <filesystem>
 
 #pragma comment(lib, "ntdll.lib")
-using nt_load_driver_t = NTSTATUS(__fastcall*)(PUNICODE_STRING);
-using nt_unload_driver_t = NTSTATUS(__fastcall*)(PUNICODE_STRING);
+extern "C" NTSTATUS NtLoadDriver(PUNICODE_STRING);
+extern "C" NTSTATUS NtUnloadDriver(PUNICODE_STRING);
 
 namespace driver
 {
@@ -184,22 +184,12 @@ namespace driver
 		std::string reg_path("\\Registry\\Machine\\System\\CurrentControlSet\\Services\\");
 		reg_path += service_name;
 
-		static const auto lp_nt_load_drv =
-			::GetProcAddress(
-				GetModuleHandleA("ntdll.dll"),
-				"NtLoadDriver"
-			);
+		ANSI_STRING driver_rep_path_cstr;
+		UNICODE_STRING driver_reg_path_unicode;
 
-		if (lp_nt_load_drv)
-		{
-			ANSI_STRING driver_rep_path_cstr;
-			UNICODE_STRING driver_reg_path_unicode;
-
-			RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
-			RtlAnsiStringToUnicodeString(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
-			return ERROR_SUCCESS == reinterpret_cast<nt_load_driver_t>(lp_nt_load_drv)(&driver_reg_path_unicode);
-		}
-		return false;
+		RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
+		RtlAnsiStringToUnicodeString(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
+		return ERROR_SUCCESS == NtLoadDriver(&driver_reg_path_unicode);
 	}
 
 	__forceinline auto load(const std::vector<std::uint8_t>& drv_buffer) -> std::tuple<bool, std::string>
@@ -241,34 +231,26 @@ namespace driver
 		std::string reg_path("\\Registry\\Machine\\System\\CurrentControlSet\\Services\\");
 		reg_path += service_name;
 
-		static const auto lp_nt_unload_drv =
-			::GetProcAddress(
-				GetModuleHandleA("ntdll.dll"),
-				"NtUnloadDriver"
-			);
+		ANSI_STRING driver_rep_path_cstr;
+		UNICODE_STRING driver_reg_path_unicode;
 
-		if (lp_nt_unload_drv)
+		RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
+		RtlAnsiStringToUnicodeString(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
+
+		const bool unload_drv = STATUS_SUCCESS == NtUnloadDriver(&driver_reg_path_unicode);
+		const auto image_path = std::filesystem::temp_directory_path().string() + service_name;
+		const bool delete_reg = util::delete_service_entry(service_name);
+
+		// sometimes you cannot delete the driver off disk because there are still handles open
+		// to the driver, this means the driver is still loaded into the kernel...
+		try
 		{
-			ANSI_STRING driver_rep_path_cstr;
-			UNICODE_STRING driver_reg_path_unicode;
-
-			RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
-			RtlAnsiStringToUnicodeString(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
-
-			const bool unload_drv = !reinterpret_cast<nt_unload_driver_t>(lp_nt_unload_drv)(&driver_reg_path_unicode);
-			const auto image_path = std::filesystem::temp_directory_path().string() + service_name;
-			const bool delete_reg = util::delete_service_entry(service_name);
-
-			try
-			{
-				const bool delete_drv = std::filesystem::remove(image_path);
-			}
-			catch (std::exception& e)
-			{
-				std::printf("[!] failed to delete vulnerable driver...\n");
-			}
-			return unload_drv && delete_reg;
+			std::filesystem::remove(image_path);
 		}
-		return false;
+		catch (std::exception& e)
+		{
+			return false;
+		}
+		return delete_reg && unload_drv;
 	}
 }
