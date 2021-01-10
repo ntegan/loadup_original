@@ -24,8 +24,8 @@
 
 
 #pragma once
-#include <Windows.h>
-#include <Winternl.h>
+#include <windows.h>
+#include <winternl.h>
 #include <string>
 #include <fstream>
 #include <filesystem>
