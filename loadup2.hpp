@@ -32,8 +32,13 @@
 #include <ntstatus.h>
 
 //#pragma comment(lib, "ntdll.lib")
-extern "C" NTSTATUS NtLoadDriver(PUNICODE_STRING);
-extern "C" NTSTATUS NtUnloadDriver(PUNICODE_STRING);
+typedef NTSTATUS(*_NtLoadDriver)(IN PUNICODE_STRING DriverServiceName);
+typedef NTSTATUS(*_NtUnloadDriver)(IN PUNICODE_STRING DriverServiceName);
+typedef VOID(*_RtlInitAnsiString)(PANSI_STRING DestinationString, PCSZ SourceString);
+typedef NTSTATUS(*_RtlAnsiStringToUnicodeString)(PUNICODE_STRING DestinationString, PCANSI_STRING SourceString, 
+                                        BOOLEAN AllocateDestinationString);
+
+
 
 namespace loadup
 {
@@ -188,9 +193,32 @@ namespace loadup
 		ANSI_STRING driver_rep_path_cstr;
 		UNICODE_STRING driver_reg_path_unicode;
 
-		RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
-		RtlAnsiStringToUnicodeString(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
-		return NtLoadDriver(&driver_reg_path_unicode);
+	    HMODULE hNtdll{ 0 };
+        hNtdll = GetModuleHandleA("Ntdll.dll");
+        if (hNtdll == NULL) {
+            return -1;
+        }
+	    _RtlInitAnsiString RtlInitAnsiStringg = NULL;
+        RtlInitAnsiStringg = (_RtlInitAnsiString)GetProcAddress(hNtdll, "RtlInitAnsiString");
+        if (RtlInitAnsiStringg == NULL) {
+            return -2;
+        }
+	    _RtlAnsiStringToUnicodeString RtlAnsiStringToUnicodeStringg = NULL;
+        RtlAnsiStringToUnicodeStringg = (_RtlAnsiStringToUnicodeString)GetProcAddress(hNtdll, "RtlAnsiStringToUnicodeString");
+        if (RtlAnsiStringToUnicodeStringg == NULL) {
+            return -2;
+        }
+
+		RtlInitAnsiStringg(&driver_rep_path_cstr, reg_path.c_str());
+		RtlAnsiStringToUnicodeStringg(&driver_reg_path_unicode, &driver_rep_path_cstr, true);
+
+	    _NtLoadDriver NtLoadDriverr = NULL;
+        NtLoadDriverr = (_NtLoadDriver)GetProcAddress(hNtdll, "NtLoadDriver");
+        if (NtLoadDriverr == NULL) {
+            return -2;
+        }
+
+		return NtLoadDriverr(&driver_reg_path_unicode);
 	}
 
 	__forceinline auto load(const std::vector<std::uint8_t>& drv_buffer) -> std::pair<NTSTATUS, std::string>
@@ -236,13 +264,34 @@ namespace loadup
 
 		ANSI_STRING driver_rep_path_cstr;
 		UNICODE_STRING driver_reg_path_unicode;
+	    HMODULE hNtdll{ 0 };
+        hNtdll = GetModuleHandleA("Ntdll.dll");
+        if (hNtdll == NULL) {
+            return -1;
+        }
+	    _RtlInitAnsiString RtlInitAnsiStringg = NULL;
+        RtlInitAnsiStringg = (_RtlInitAnsiString)GetProcAddress(hNtdll, "RtlInitAnsiString");
+        if (RtlInitAnsiStringg == NULL) {
+            return -2;
+        }
 
-		RtlInitAnsiString(&driver_rep_path_cstr, reg_path.c_str());
-		RtlAnsiStringToUnicodeString(
+		RtlInitAnsiStringg(&driver_rep_path_cstr, reg_path.c_str());
+	    _RtlAnsiStringToUnicodeString RtlAnsiStringToUnicodeStringg = NULL;
+        RtlAnsiStringToUnicodeStringg = (_RtlAnsiStringToUnicodeString)GetProcAddress(hNtdll, "RtlAnsiStringToUnicodeString");
+        if (RtlAnsiStringToUnicodeStringg == NULL) {
+            return -2;
+        }
+		RtlAnsiStringToUnicodeStringg(
 			&driver_reg_path_unicode, &driver_rep_path_cstr, true);
 
+	    _NtUnloadDriver NtUnloadDriverr = NULL;
+        NtUnloadDriverr = (_NtUnloadDriver)GetProcAddress(hNtdll, "NtUnloadDriver");
+        if (NtUnloadDriverr == NULL) {
+            return -2;
+        }
+
 		const bool unload_result = 
-			NtUnloadDriver(&driver_reg_path_unicode);
+			NtUnloadDriverr(&driver_reg_path_unicode);
 
 		util::delete_service_entry(service_name);
 		// sometimes you cannot delete the driver off disk because there are still handles open
